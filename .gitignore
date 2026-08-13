@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Code — per-machine local settings. Shared config (.claude/skills,
+# .claude/settings.json) is tracked; only this file is local-only.
+.claude/settings.local.json
