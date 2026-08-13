@@ -1,0 +1,56 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you re-deploy from the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two deploys race; queue them instead of cancelling a live one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Node 22: Vite 7 requires ^20.19.0 || >=22.12.0. The runner is not
+      # bound by whatever Node happens to be installed locally.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Same gate as the deploy skill: lint, because no test suite exists yet.
+      # If a `test` script is ever added, add `npm test` here too.
+      - run: npm run lint
+
+      # Pages serves this project site from /expense-tracker/, so the built
+      # asset URLs need that prefix or every script and stylesheet 404s.
+      # Passed here rather than set in vite.config.js so local dev and preview
+      # keep serving from the root.
+      - run: npm run build -- --base=/expense-tracker/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

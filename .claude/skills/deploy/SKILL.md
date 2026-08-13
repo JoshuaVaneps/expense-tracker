@@ -1,9 +1,9 @@
 ---
 name: deploy
-description: Deploy this app to staging - run the verification gate, build the production bundle, then push to the staging branch on origin. Use when asked to deploy, ship, release, or push to staging.
+description: Deploy this app to GitHub Pages - run the verification gate, build the production bundle, then push main so the Pages workflow publishes it. Use when asked to deploy, ship, release, publish, or put the site live.
 ---
 
-# Deploy to staging
+# Deploy to GitHub Pages
 
 Four steps, in order: **preflight → gate → build → push**. Each step must pass
 before the next one runs. If a step fails, stop and report the actual output —
@@ -56,29 +56,44 @@ prints an engine warning. `npm run build` and `npm run lint` still work on it;
 only `npm run dev` is broken. See the Node section of CLAUDE.md. The engine
 warning is not a deploy failure.
 
-## 4. Push to staging
+## 4. Publish
 
-**Confirm with the user before this step.** It is the only step that leaves the
-machine, and it overwrites whatever is on the staging branch. State what is about
-to happen — source branch, target, and the commit going out — and wait for a
-clear yes:
+Deployment is handled by `.github/workflows/deploy.yml`, which runs on every
+push to `main` (and can be re-run by hand from the Actions tab). So publishing
+means getting the work onto `main` — there is no separate deploy command, and
+nothing is uploaded from this machine.
 
-> Ready to deploy `add-category-chart` (cff140c "Add spending-by-category
-> bar chart") to `origin/staging`, overwriting what's there. Confirm?
+**Confirm with the user before pushing.** It is the only step that leaves the
+machine, and it puts the site in front of anyone with the URL. State the branch,
+the commit, and the live URL, then wait for a clear yes:
 
-Then:
+> Ready to publish `main` (05da343 "Restyle the app as a ledger instrument") to
+> https://joshuavaneps.github.io/expense-tracker/. Confirm?
+
+If the work is on a feature branch, merge it first — say so rather than pushing
+the branch and wondering why nothing deployed:
 
 ```bash
-git push origin HEAD:staging --force-with-lease
+git checkout main && git merge --ff-only <branch>
+git push origin main
 ```
 
-`--force-with-lease`, not `--force`: staging is a redeployable target so it gets
-overwritten each time, but the lease still aborts the push if the remote moved in
-a way you have not seen. If the lease is rejected, **stop and report it** — a
-rejection means someone else pushed to staging. Do not re-run with `--force`.
+Then watch the run. Without the `gh` CLI on this machine you cannot stream it,
+so point the user at `https://github.com/JoshuaVaneps/expense-tracker/actions`
+and say the deploy takes a minute or two. **Do not report the site as live
+until the run has actually succeeded** — a green push is not a green deploy.
 
-Do not push to `main` as part of a deploy. Do not create tags or GitHub releases
-unless separately asked.
+Two failure modes worth recognising rather than retrying blindly:
+
+- **The workflow never starts.** Pages is not enabled, or its source is not set
+  to GitHub Actions. That is a repository settings change only the owner can
+  make: Settings → Pages → Source: GitHub Actions.
+- **The page loads blank with 404s on `/assets/...`.** The `--base` flag in the
+  workflow's build step does not match the repo name. It must be `/<repo>/` for
+  a project site. It lives in the workflow rather than `vite.config.js` so that
+  local dev and preview keep serving from the root.
+
+Do not create tags or GitHub releases unless separately asked.
 
 ## Reporting
 
