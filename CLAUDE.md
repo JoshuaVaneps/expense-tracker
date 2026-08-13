@@ -27,15 +27,17 @@ Vite 7 requires Node `^20.19.0 || >=22.12.0`. The nvm default here is set to `v2
 A Vite + React 19 single-page app, JSX only (no TypeScript), scaffolded from the Vite React template. `index.html` → `src/main.jsx` (mounts `<App />` in `StrictMode`) → `src/App.jsx`. No router, no context, no state library.
 
 ```
-App                                  transactions state + addTransaction
-├── Summary          transactions    derives income / expenses / balance
-├── TransactionForm  onAdd           owns the 4 form fields
-└── TransactionList  transactions    owns the 2 filters
+App                                            transactions state + add/delete
+├── Summary          transactions              derives income / expenses / balance
+├── TransactionForm  onAdd                     owns the 4 form fields
+└── TransactionList  transactions, onDelete    owns the 2 filters
 ```
 
-**`App` is the only component that owns shared data.** It holds the `transactions` array and `addTransaction`, and nothing else — every other piece of state is local to the component that reads it. The form's four fields live in `TransactionForm`; the two filters live in `TransactionList`. Don't lift state back to `App` unless a sibling genuinely needs it.
+**`App` is the only component that owns shared data.** It holds the `transactions` array plus `addTransaction` / `deleteTransaction`, and nothing else — every other piece of state is local to the component that reads it. The form's four fields live in `TransactionForm`; the two filters live in `TransactionList`. Don't lift state back to `App` unless a sibling genuinely needs it.
 
 The split of responsibility on add: `TransactionForm` collects the user-entered fields and calls `onAdd({ description, amount, type, category })`; `App` stamps `id` (`Date.now()`) and `date`. Keep record-shape concerns in `App` — the form should not invent ids or timestamps.
+
+`deleteTransaction` filters by `id`, never by index. `TransactionList` renders a filtered subset, so a row's position there does not correspond to its position in the source array — an index-based delete removes the wrong record whenever a filter is active.
 
 Everything is derived-on-render rather than stored. `Summary` recomputes the three totals from the transactions prop on each render, and `TransactionList` recomputes `filteredTransactions`. Note that `Summary` receives the **unfiltered** list on purpose: the totals reflect all transactions regardless of what the list is filtered to.
 
@@ -48,7 +50,7 @@ Transactions are seeded inline in `App`'s `useState` initializer and exist only 
 - **`amount` must stay a number.** The starter shipped it as a string in both the seed data and the submit handler, which made `reduce((sum, t) => sum + t.amount, 0)` concatenate instead of add. That is fixed — seed amounts are numeric literals and `TransactionForm` wraps the input with `Number(amount)`, since `<input type="number">` still yields a string. Keep that coercion when touching the form.
 - Totals are unformatted, so a decimal amount renders as e.g. `$10.5`, and float addition can surface `$1234.5600000000001`. Wrap the values in `Summary` with `toFixed(2)` if that starts to matter.
 - Seed row 4 ("Freelance Work", category `salary`) is typed `expense`, so it counts against Expenses. Left as-is — change it only if you mean to.
-- `.delete-btn` is styled in `src/App.css` but nothing renders it, and the table in `TransactionList` has a trailing empty `<th>`/`<td>` — placeholders for a delete-row feature that isn't built. Delete would need a handler in `App` (it owns `transactions`) passed down to `TransactionList`.
+- Deleting a row goes through `window.confirm`. That blocks Chrome automation, so any browser-driven test must stub it first (`window.confirm = () => true`) rather than let the real dialog open.
 
 ### Styling
 
