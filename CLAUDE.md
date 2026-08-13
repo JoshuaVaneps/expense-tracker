@@ -34,7 +34,9 @@ Transactions are seeded inline in the `useState` initializer and exist only in m
 
 ### Known quirks in the starter
 
-- **Amounts are strings.** Both the seed data (`amount: "5000"`) and the `<input type="number">` produce strings, so `reduce((sum, t) => sum + t.amount, 0)` concatenates instead of adding, and the Income/Expenses totals render as run-together digits. Any work on the summary numbers has to deal with this first.
+- **`amount` must stay a number.** The starter shipped it as a string in both the seed data and `handleSubmit`, which made `reduce((sum, t) => sum + t.amount, 0)` concatenate instead of add. That is fixed — seed amounts are numeric literals and `handleSubmit` wraps the input with `Number(amount)`, since `<input type="number">` still yields a string. Keep that coercion when touching the form.
+- Totals are unformatted, so a decimal amount renders as e.g. `$10.5`, and float addition can surface `$1234.5600000000001`. Wrap the summary values in `toFixed(2)` if that starts to matter.
+- Seed row 4 ("Freelance Work", category `salary`) is typed `expense`, so it counts against Expenses. Left as-is — change it only if you mean to.
 - `.delete-btn` is styled in `src/App.css` but nothing in `App.jsx` renders it, and the transactions table has a trailing empty `<th>`/`<td>` — placeholders for a delete-row feature that isn't built.
 
 ### Styling
