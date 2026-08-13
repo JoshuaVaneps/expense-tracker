@@ -20,33 +20,57 @@ function TransactionForm({ onAdd }) {
   };
 
   return (
-    <div className="add-transaction">
-      <h2>Add Transaction</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <input
-          type="number"
-          placeholder="Amount"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-        />
-        <select value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="income">Income</option>
-          <option value="expense">Expense</option>
-        </select>
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          {CATEGORIES.map(cat => (
-            <option key={cat} value={cat}>{cat}</option>
-          ))}
-        </select>
-        <button type="submit">Add</button>
+    <section className="card form-card">
+      <h2 className="card-title">Add transaction</h2>
+
+      <form className="entry-form" onSubmit={handleSubmit}>
+        <div className="field">
+          <label htmlFor="entry-description">Description</label>
+          <input
+            id="entry-description"
+            type="text"
+            placeholder="Rent, groceries, paycheck"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+
+        <div className="field">
+          <label htmlFor="entry-amount">Amount</label>
+          <input
+            id="entry-amount"
+            className="figure"
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="0.00"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </div>
+
+        <div className="field-pair">
+          <div className="field">
+            <label htmlFor="entry-type">Type</label>
+            <select id="entry-type" value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="income">Income</option>
+              <option value="expense">Expense</option>
+            </select>
+          </div>
+
+          <div className="field">
+            <label htmlFor="entry-category">Category</label>
+            <select id="entry-category" value={category} onChange={(e) => setCategory(e.target.value)}>
+              {CATEGORIES.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" className="btn-primary">Add transaction</button>
       </form>
-    </div>
+    </section>
   );
 }
 

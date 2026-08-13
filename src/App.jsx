@@ -33,12 +33,20 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Finance Tracker</h1>
-      <p className="subtitle">Track your income and expenses</p>
+      <header className="masthead">
+        <h1 className="wordmark">Finance Tracker</h1>
+        <p className="masthead-meta">
+          {transactions.length} {transactions.length === 1 ? "entry" : "entries"}
+        </p>
+      </header>
 
       <Summary transactions={transactions} />
-      <CategoryChart transactions={transactions} />
-      <TransactionForm onAdd={addTransaction} />
+
+      <div className="workspace">
+        <CategoryChart transactions={transactions} />
+        <TransactionForm onAdd={addTransaction} />
+      </div>
+
       <TransactionList transactions={transactions} onDelete={deleteTransaction} />
     </div>
   );

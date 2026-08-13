@@ -8,26 +8,11 @@ import {
   LabelList,
   ResponsiveContainer,
 } from 'recharts'
-import { CATEGORIES } from '../constants.js'
+import { colorForCategory } from '../constants.js'
+import { formatCurrency } from '../format.js'
 
-// One validated hue per category, indexed by position in CATEGORIES so a
-// category keeps its color no matter how the bars are sorted.
-const CATEGORY_COLORS = [
-  "#2a78d6", // food
-  "#eb6834", // housing
-  "#1baf7a", // utilities
-  "#eda100", // transport
-  "#e87ba4", // entertainment
-  "#008300", // salary
-  "#4a3aa7", // other
-];
-const FALLBACK_COLOR = "#898781";
-const AXIS_INK = "#898781";
-const CURSOR_FILL = "#f0efec";
-
-const colorFor = (category) => CATEGORY_COLORS[CATEGORIES.indexOf(category)] || FALLBACK_COLOR;
-
-const formatCurrency = (value) => `$${value.toFixed(2)}`;
+const AXIS_INK = "#5c6579";
+const CURSOR_FILL = "#f1f3f8";
 
 function CategoryChart({ transactions }) {
   const totalsByCategory = {};
@@ -42,27 +27,33 @@ function CategoryChart({ transactions }) {
     .sort((a, b) => b.amount - a.amount);
 
   return (
-    <div className="category-chart">
-      <h2>Spending by Category</h2>
+    <section className="card chart-card">
+      <h2 className="card-title">Spending by category</h2>
       {data.length === 0 ? (
-        <p className="chart-empty">No expenses to chart yet.</p>
+        <p className="empty-state">No expenses to chart yet.</p>
       ) : (
-        <ResponsiveContainer width="100%" height={260}>
-          <BarChart data={data} margin={{ top: 24, right: 8, bottom: 8, left: 8 }}>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data} margin={{ top: 28, right: 8, bottom: 8, left: 8 }}>
             <XAxis
               dataKey="category"
               tickLine={false}
-              axisLine={{ stroke: "#c3c2b7" }}
+              axisLine={{ stroke: "#e3e7ef" }}
               tick={{ fill: AXIS_INK, fontSize: 12 }}
             />
             <YAxis hide />
             <Tooltip
               cursor={{ fill: CURSOR_FILL }}
               formatter={(value) => [formatCurrency(value), "Spent"]}
+              contentStyle={{
+                border: "1px solid #e3e7ef",
+                borderRadius: 8,
+                fontSize: 13,
+                boxShadow: "0 4px 16px rgba(16, 26, 43, 0.08)",
+              }}
             />
             <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={48}>
               {data.map(entry => (
-                <Cell key={entry.category} fill={colorFor(entry.category)} />
+                <Cell key={entry.category} fill={colorForCategory(entry.category)} />
               ))}
               <LabelList
                 dataKey="amount"
@@ -75,7 +66,7 @@ function CategoryChart({ transactions }) {
           </BarChart>
         </ResponsiveContainer>
       )}
-    </div>
+    </section>
   );
 }
 

@@ -62,28 +62,41 @@ The split of responsibility on add: `TransactionForm` collects the user-entered 
 
 Everything is derived-on-render rather than stored. `Summary` recomputes the three totals from the transactions prop on each render, and `TransactionList` recomputes `filteredTransactions`. Note that `Summary` receives the **unfiltered** list on purpose: the totals reflect all transactions regardless of what the list is filtered to.
 
+### The hero
+
+`Summary` is the page's thesis, not a row of equal cards: the balance is the headline figure, captioned *in the black* / *in the red* (the figure itself switches to `--debit` when negative), over a meter showing what share of income has been spent. `spentShare` is clamped with `Math.min(…, 1)` so the fill never overruns its track when spending outruns income, and the three zero-income cases are branched explicitly — dividing by a zero income otherwise puts `Infinity%` or `NaN%` on screen.
+
 ### The chart
 
 `CategoryChart` is a Recharts vertical `BarChart` of expense totals per category — `type === "expense"` only, so it does not mirror `Summary`'s income figure. Like everything else it derives on render from the `transactions` prop and holds no state.
 
 Two things there are deliberate and easy to break:
 
-- **Color is keyed to the category, not to the bar's position.** `colorFor` looks the category up in `CATEGORIES` and indexes `CATEGORY_COLORS` by that position. The bars are sorted by amount descending, so an index-into-the-sorted-data lookup (or a `% colors.length` cycle) would repaint every category whenever the amounts reorder. Keep the two arrays the same length and in the same order — adding a category means adding a hue.
+- **Color is keyed to the category, not to the bar's position.** `colorForCategory` (in `src/constants.js`) looks the category up in `CATEGORIES` and indexes `CATEGORY_COLORS` by that position. The bars are sorted by amount descending, so an index-into-the-sorted-data lookup (or a `% colors.length` cycle) would repaint every category whenever the amounts reorder. Keep the two arrays the same length and in the same order — adding a category means adding a hue.
 - **The hues are a validated set, not arbitrary.** They clear colorblind-separation and lightness checks against the white surface; three of them sit below 3:1 contrast, which is why every bar carries a visible x-axis name and a value label above it. Don't drop those labels, and don't swap in ad-hoc colors.
 
-`CATEGORIES` in `src/constants.js` is the single source of truth for categories — imported by both `TransactionForm` (the category picker) and `TransactionList` (the category filter), so adding one means editing that one array. It lives in its own module rather than being passed down from `App`, to avoid prop-drilling a static array to two siblings.
+`src/constants.js` is the single source of truth for categories: `CATEGORIES` plus the matching `CATEGORY_COLORS` and the `colorForCategory` lookup. It is imported by `TransactionForm` (the category picker), `TransactionList` (the category filter and the colored dot on each row) and `CategoryChart` (the bar fills), so adding a category means editing that one file — the array **and** the hue at the same index. It lives in its own module rather than being passed down from `App`, to avoid prop-drilling a static array to two siblings.
 
 Transactions are seeded inline in `App`'s `useState` initializer and exist only in memory: no backend, no `localStorage`, no persistence. A reload resets to the seed data.
 
 ### Known quirks in the starter
 
 - **`amount` must stay a number.** The starter shipped it as a string in both the seed data and the submit handler, which made `reduce((sum, t) => sum + t.amount, 0)` concatenate instead of add. That is fixed — seed amounts are numeric literals and `TransactionForm` wraps the input with `Number(amount)`, since `<input type="number">` still yields a string. Keep that coercion when touching the form.
-- Totals are unformatted, so a decimal amount renders as e.g. `$10.5`, and float addition can surface `$1234.5600000000001`. Wrap the values in `Summary` with `toFixed(2)` if that starts to matter.
+- Amounts are no longer rendered raw. Every figure goes through `formatCurrency` in `src/format.js` (an `Intl.NumberFormat` currency formatter), which is what keeps float noise like `$1234.5600000000001` off the screen. `formatDate` lives there too, and deliberately splits the ISO string instead of using `new Date(iso)` — the latter parses as UTC midnight and renders as the previous day in any negative-offset timezone.
 - Seed row 4 ("Freelance Work", category `salary`) is typed `expense`, so it counts against Expenses. Left as-is — change it only if you mean to.
 - Deleting a row goes through `window.confirm`. That blocks Chrome automation, so any browser-driven test must stub it first (`window.confirm = () => true`) rather than let the real dialog open.
 
 ### Styling
 
-Plain CSS, no framework or CSS modules. `src/index.css` is a minimal global reset; `src/App.css` carries the styling for **every** component, keyed to semantic class names (`.app`, `.summary-card`, `.income-amount`, `.filters`, …).
+Plain CSS, no framework or CSS modules. `src/index.css` holds the reset **and the design tokens** — every color, font family and radius is a custom property on `:root` there, so nothing downstream hardcodes a hex. `src/App.css` carries the styling for **every** component, keyed to semantic class names (`.app`, `.hero`, `.income-amount`, `.filters`, …) and referencing those tokens.
 
-The stylesheet was deliberately not split per component when the components were extracted: `.income-amount` / `.expense-amount` are shared between `Summary`'s cards and `TransactionList`'s amount cells (both use them to drive the green/red coloring), so moving them into a per-component file would break one of the two. `App.css` is imported once by `App.jsx` and applies globally from there — child components import no CSS of their own.
+The visual direction is a *ledger instrument*: cool paper (`--paper`), white cards, and income/expense rendered as printed **inks** (`--credit` deep forest, `--debit` deep brick) rather than bright signal green/red. Three typefaces do three jobs — Newsreader for the wordmark and card titles, Instrument Sans for UI, Roboto Mono for every currency figure via the `.figure` class, which also sets `tabular-nums` so columns align. They load from Google Fonts in `index.html`, with fallbacks. Roboto Mono is deliberate: IBM Plex Mono ships a slashed zero that reads as a strikethrough across a trailing `.00` at 14px.
+
+**`--card` must stay `#ffffff`.** The chart's category hues were contrast-validated against a white surface; tinting the card invalidates that check.
+
+Two CSS traps already hit here, both worth remembering:
+
+- **Specificity.** `.ledger th` (0,1,1) beats a bare `.col-amount` (0,1,0), so column modifiers are written `.ledger th.col-amount, .ledger td.col-amount`. A bare class silently loses and the header drifts out of alignment with its column.
+- **Grid tracks use `minmax(0, 1fr)`, never a bare `1fr`.** A bare track keeps `min-width: auto`, so a wide child (the chart) props the grid open and the page scrolls sideways on a phone.
+
+The stylesheet was deliberately not split per component when the components were extracted: `.income-amount` / `.expense-amount` are shared between `Summary`'s totals and `TransactionList`'s amount cells (both use them to drive the credit/debit ink), so moving them into a per-component file would break one of the two. `App.css` is imported once by `App.jsx` and applies globally from there — child components import no CSS of their own.

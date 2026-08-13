@@ -1,3 +1,29 @@
+:root {
+  /* Surfaces — cool paper, white cards. The card stays #ffffff on purpose:
+     the chart's category hues were validated for contrast against white. */
+  --paper: #edf0f5;
+  --card: #ffffff;
+  --rule: #e3e7ef;
+
+  /* Ink */
+  --ink: #101a2b;
+  --ink-muted: #5c6579;
+
+  /* Ledger inks — deep printed tones, not signal green/red */
+  --credit: #0e6b40;
+  --debit: #a62f26;
+  --accent: #1d3557;
+
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Roboto Mono, not Plex Mono: Plex ships a slashed zero, and at 14px the
+     slashes across a trailing ".00" read as a strikethrough. */
+  --font-mono: "Roboto Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -5,7 +31,32 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background-color: #ffffff;
-  color: #333;
+  font-family: var(--font-sans);
+  background-color: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every currency figure is tabular so columns align down the page. */
+.figure {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
