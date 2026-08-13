@@ -20,25 +20,38 @@ There is no test framework or test script in this project.
 
 ### Node version
 
-Vite 7 requires Node `^20.19.0 || >=22.12.0`. This machine's nvm default is `v14.17.6`, which fails with `SyntaxError: Unexpected token '??='` before Vite even starts. Run `nvm use 22.20.0` (installed) first, or prefix commands with that version's bin directory.
+Vite 7 requires Node `^20.19.0 || >=22.12.0`. The nvm default here is set to `v22.20.0`, so a fresh shell works with no setup. If `npm run dev` dies with `SyntaxError: Unexpected token '??='`, the shell is on an older Node (the machine has v14 through v24 installed, and this used to default to v14.17.6) — run `nvm use default`. Note that npm 6 from the v14 install rewrites `package-lock.json` down to lockfileVersion 1; if that shows up in a diff, revert it and reinstall on Node 22.
 
 ## Architecture
 
-A Vite + React 19 single-page app, JSX only (no TypeScript), scaffolded from the Vite React template. `index.html` → `src/main.jsx` (mounts `<App />` in `StrictMode`) → `src/App.jsx`.
+A Vite + React 19 single-page app, JSX only (no TypeScript), scaffolded from the Vite React template. `index.html` → `src/main.jsx` (mounts `<App />` in `StrictMode`) → `src/App.jsx`. No router, no context, no state library.
 
-**Everything lives in `src/App.jsx`.** One `App` component holds all state, all derived values, and all markup — there are no child components, no router, no context, and no state library. State is six `useState` hooks: the `transactions` array plus the controlled inputs for the add-transaction form (`description`, `amount`, `type`, `category`) and the two list filters (`filterType`, `filterCategory`).
+```
+App                                  transactions state + addTransaction
+├── Summary          transactions    derives income / expenses / balance
+├── TransactionForm  onAdd           owns the 4 form fields
+└── TransactionList  transactions    owns the 2 filters
+```
 
-Data flow is fully derived-on-render: `totalIncome` / `totalExpenses` / `balance` and `filteredTransactions` are recomputed from `transactions` on every render rather than stored. The `categories` array in `App.jsx` is the single source of truth — it populates both the form's category `<select>` and the filter `<select>`, so adding a category means editing that one array.
+**`App` is the only component that owns shared data.** It holds the `transactions` array and `addTransaction`, and nothing else — every other piece of state is local to the component that reads it. The form's four fields live in `TransactionForm`; the two filters live in `TransactionList`. Don't lift state back to `App` unless a sibling genuinely needs it.
 
-Transactions are seeded inline in the `useState` initializer and exist only in memory: there is no backend, no `localStorage`, and no persistence of any kind. A reload resets to the seed data. The only mutation is `handleSubmit`, which appends a new transaction with `Date.now()` as the id.
+The split of responsibility on add: `TransactionForm` collects the user-entered fields and calls `onAdd({ description, amount, type, category })`; `App` stamps `id` (`Date.now()`) and `date`. Keep record-shape concerns in `App` — the form should not invent ids or timestamps.
+
+Everything is derived-on-render rather than stored. `Summary` recomputes the three totals from the transactions prop on each render, and `TransactionList` recomputes `filteredTransactions`. Note that `Summary` receives the **unfiltered** list on purpose: the totals reflect all transactions regardless of what the list is filtered to.
+
+`CATEGORIES` in `src/constants.js` is the single source of truth for categories — imported by both `TransactionForm` (the category picker) and `TransactionList` (the category filter), so adding one means editing that one array. It lives in its own module rather than being passed down from `App`, to avoid prop-drilling a static array to two siblings.
+
+Transactions are seeded inline in `App`'s `useState` initializer and exist only in memory: no backend, no `localStorage`, no persistence. A reload resets to the seed data.
 
 ### Known quirks in the starter
 
-- **`amount` must stay a number.** The starter shipped it as a string in both the seed data and `handleSubmit`, which made `reduce((sum, t) => sum + t.amount, 0)` concatenate instead of add. That is fixed — seed amounts are numeric literals and `handleSubmit` wraps the input with `Number(amount)`, since `<input type="number">` still yields a string. Keep that coercion when touching the form.
-- Totals are unformatted, so a decimal amount renders as e.g. `$10.5`, and float addition can surface `$1234.5600000000001`. Wrap the summary values in `toFixed(2)` if that starts to matter.
+- **`amount` must stay a number.** The starter shipped it as a string in both the seed data and the submit handler, which made `reduce((sum, t) => sum + t.amount, 0)` concatenate instead of add. That is fixed — seed amounts are numeric literals and `TransactionForm` wraps the input with `Number(amount)`, since `<input type="number">` still yields a string. Keep that coercion when touching the form.
+- Totals are unformatted, so a decimal amount renders as e.g. `$10.5`, and float addition can surface `$1234.5600000000001`. Wrap the values in `Summary` with `toFixed(2)` if that starts to matter.
 - Seed row 4 ("Freelance Work", category `salary`) is typed `expense`, so it counts against Expenses. Left as-is — change it only if you mean to.
-- `.delete-btn` is styled in `src/App.css` but nothing in `App.jsx` renders it, and the transactions table has a trailing empty `<th>`/`<td>` — placeholders for a delete-row feature that isn't built.
+- `.delete-btn` is styled in `src/App.css` but nothing renders it, and the table in `TransactionList` has a trailing empty `<th>`/`<td>` — placeholders for a delete-row feature that isn't built. Delete would need a handler in `App` (it owns `transactions`) passed down to `TransactionList`.
 
 ### Styling
 
-Plain CSS, no framework or CSS modules. `src/index.css` is a minimal global reset; `src/App.css` carries all component styling, keyed to the semantic class names used in `App.jsx` (`.app`, `.summary-card`, `.income-amount`, `.expense-amount`, `.balance-amount`, `.filters`, …). Income/expense coloring is driven by swapping `.income-amount` / `.expense-amount` on the amount cell.
+Plain CSS, no framework or CSS modules. `src/index.css` is a minimal global reset; `src/App.css` carries the styling for **every** component, keyed to semantic class names (`.app`, `.summary-card`, `.income-amount`, `.filters`, …).
+
+The stylesheet was deliberately not split per component when the components were extracted: `.income-amount` / `.expense-amount` are shared between `Summary`'s cards and `TransactionList`'s amount cells (both use them to drive the green/red coloring), so moving them into a per-component file would break one of the two. `App.css` is imported once by `App.jsx` and applies globally from there — child components import no CSS of their own.
