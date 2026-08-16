@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CATEGORIES, colorForCategory } from '../constants.js'
+import { CATEGORIES, categoryClass } from '../constants.js'
 import { formatCurrency, formatDate } from '../format.js'
 
 function TransactionList({ transactions, onDelete }) {
@@ -15,6 +15,26 @@ function TransactionList({ transactions, onDelete }) {
   }
 
   const isFiltered = filterType !== "all" || filterCategory !== "all";
+
+  // Magnitude bars are scaled to the largest row currently on screen, so they
+  // rescale with the filters rather than staying keyed to a hidden row.
+  const scale = filteredTransactions.reduce((max, t) => Math.max(max, t.amount), 0) || 1;
+
+  const moneyCell = (t, side) => {
+    if ((side === "in") !== (t.type === "income")) return null;
+
+    return (
+      <>
+        <span
+          className={`magnitude ${side === "in" ? "magnitude-credit" : "magnitude-debit"}`}
+          style={{ width: `${(t.amount / scale) * 100}%` }}
+        />
+        <span className={`money-value figure ${side === "in" ? "income-amount" : "expense-amount"}`}>
+          {formatCurrency(t.amount)}
+        </span>
+      </>
+    );
+  };
 
   return (
     <section className="card list-card">
@@ -53,7 +73,8 @@ function TransactionList({ transactions, onDelete }) {
                 <th className="col-date">Date</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th className="col-amount">Amount</th>
+                <th className="col-money">In</th>
+                <th className="col-money">Out</th>
                 <th className="col-action"><span className="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -64,18 +85,12 @@ function TransactionList({ transactions, onDelete }) {
                   <td className="cell-description">{t.description}</td>
                   <td>
                     <span className="category-tag">
-                      <span
-                        className="category-dot"
-                        style={{ backgroundColor: colorForCategory(t.category) }}
-                      />
+                      <span className={`category-dot ${categoryClass(t.category)}`} />
                       {t.category}
                     </span>
                   </td>
-                  <td
-                    className={`col-amount figure ${t.type === "income" ? "income-amount" : "expense-amount"}`}
-                  >
-                    {t.type === "income" ? "+" : "−"}{formatCurrency(t.amount)}
-                  </td>
+                  <td className="col-money">{moneyCell(t, "in")}</td>
+                  <td className="col-money">{moneyCell(t, "out")}</td>
                   <td className="col-action">
                     <button
                       className="btn-remove"

@@ -47,14 +47,21 @@ Vite serves the transformed source at that path. If it does not contain the edit
 A Vite + React 19 single-page app, JSX only (no TypeScript), scaffolded from the Vite React template. `index.html` → `src/main.jsx` (mounts `<App />` in `StrictMode`) → `src/App.jsx`. No router, no context, no state library. Recharts is the only runtime dependency beyond React.
 
 ```
-App                                            transactions state + add/delete
-├── Summary          transactions              derives income / expenses / balance
+App                                            transactions + period state, add/delete
+├── Summary          transactions              balance, meter, running-balance sparkline
 ├── CategoryChart    transactions              derives expense totals per category
 ├── TransactionForm  onAdd                     owns the 4 form fields
 └── TransactionList  transactions, onDelete    owns the 2 filters
 ```
 
-**`App` is the only component that owns shared data.** It holds the `transactions` array plus `addTransaction` / `deleteTransaction`, and nothing else — every other piece of state is local to the component that reads it. The form's four fields live in `TransactionForm`; the two filters live in `TransactionList`. Don't lift state back to `App` unless a sibling genuinely needs it.
+The three data children receive the **period-filtered** list, not the raw one, so the month selector in the masthead moves the whole page at once.
+
+**`App` is the only component that owns shared data.** It holds the `transactions` array, `addTransaction` / `deleteTransaction`, and the selected `period` — and nothing else. Every other piece of state is local to the component that reads it. The period earns its place up here because all three siblings render the same window of time; the list's own type and category filters do not, so they stay in the list.
+
+Two guards on the period that are easy to delete by accident:
+
+- **`activePeriod` falls back to `"all"` when the selected month is no longer in the data.** Deleting the last entry of a month would otherwise leave the select pointing at a month that does not exist.
+- **Adding a transaction resets the period to `"all"`.** New entries are stamped with today; if an older month were on screen the row would land outside the window and the add would look like it silently failed. The form's four fields live in `TransactionForm`; the two filters live in `TransactionList`. Don't lift state back to `App` unless a sibling genuinely needs it.
 
 The split of responsibility on add: `TransactionForm` collects the user-entered fields and calls `onAdd({ description, amount, type, category })`; `App` stamps `id` (`Date.now()`) and `date`. Keep record-shape concerns in `App` — the form should not invent ids or timestamps.
 
@@ -66,16 +73,27 @@ Everything is derived-on-render rather than stored. `Summary` recomputes the thr
 
 `Summary` is the page's thesis, not a row of equal cards: the balance is the headline figure, captioned *in the black* / *in the red* (the figure itself switches to `--debit` when negative), over a meter showing what share of income has been spent. `spentShare` is clamped with `Math.min(…, 1)` so the fill never overruns its track when spending outruns income, and the three zero-income cases are branched explicitly — dividing by a zero income otherwise puts `Infinity%` or `NaN%` on screen.
 
+Beneath it sits a hand-rolled SVG sparkline of the running balance in date order (Recharts is not involved — a polyline needs no chart engine). Two decisions there:
+
+- **It scales to the data's own min/max, not to zero.** Anchoring to zero is more honest about absolute magnitude, but when the balance is large relative to its swings it flattens the curve into a featureless line, and shape is the only thing a 56px-tall sparkline can convey.
+- **The stroke uses `vectorEffect="non-scaling-stroke"`.** The viewBox is squashed by `preserveAspectRatio="none"`, which would otherwise stretch the line weight along with it.
+
+It renders only with two or more entries; one point is not a trend.
+
 ### The chart
 
 `CategoryChart` is a Recharts vertical `BarChart` of expense totals per category — `type === "expense"` only, so it does not mirror `Summary`'s income figure. Like everything else it derives on render from the `transactions` prop and holds no state.
 
 Two things there are deliberate and easy to break:
 
-- **Color is keyed to the category, not to the bar's position.** `colorForCategory` (in `src/constants.js`) looks the category up in `CATEGORIES` and indexes `CATEGORY_COLORS` by that position. The bars are sorted by amount descending, so an index-into-the-sorted-data lookup (or a `% colors.length` cycle) would repaint every category whenever the amounts reorder. Keep the two arrays the same length and in the same order — adding a category means adding a hue.
-- **The hues are a validated set, not arbitrary.** They clear colorblind-separation and lightness checks against the white surface; three of them sit below 3:1 contrast, which is why every bar carries a visible x-axis name and a value label above it. Don't drop those labels, and don't swap in ad-hoc colors.
+- **Color is keyed to the category, not to the bar's position.** Each `Cell` carries `categoryClass(category)` — `cat-food`, `cat-housing` — and CSS paints it. The bars are sorted by amount descending, so an index-into-the-sorted-data lookup (or a `% colors.length` cycle) would repaint every category whenever the amounts reorder.
+- **The hues are a validated set, not arbitrary.** Both modes clear colorblind-separation, lightness and chroma checks against their own surface. In light mode three of them sit below 3:1 contrast, which is why every bar carries a visible x-axis name and a value label above it — don't drop those labels. The dark steps all clear 3:1.
+- **The `fill` prop on `<Bar>` is a fallback, not the real color.** Presentation attributes lose to any stylesheet rule, so the `.cat-*` classes always win; the attribute only shows for a category with no CSS rule.
+- **The tooltip carries each category's share of spending.** At an ~80:1 range between the largest and smallest category the short bars convey nothing on their own, so the percentage is what makes them legible.
 
-`src/constants.js` is the single source of truth for categories: `CATEGORIES` plus the matching `CATEGORY_COLORS` and the `colorForCategory` lookup. It is imported by `TransactionForm` (the category picker), `TransactionList` (the category filter and the colored dot on each row) and `CategoryChart` (the bar fills), so adding a category means editing that one file — the array **and** the hue at the same index. It lives in its own module rather than being passed down from `App`, to avoid prop-drilling a static array to two siblings.
+`src/constants.js` holds `CATEGORIES` and the `categoryClass` helper. The hues themselves live in `src/index.css` as `--cat-*` tokens with a matching `.cat-*` rule each, **because they have to change between light and dark mode and a JS array cannot answer a media query**. Each `.cat-*` rule sets both `fill` and `background-color`, so the same class paints the chart's SVG bars and the list's dots; each element simply ignores the property that does not apply to it.
+
+Adding a category therefore means three edits in two files: the name in `CATEGORIES`, the `--cat-<name>` pair (light and dark) in `index.css`, and the `.cat-<name>` rule beside them. It lives in its own module rather than being passed down from `App`, to avoid prop-drilling a static array to two siblings.
 
 Transactions are seeded inline in `App`'s `useState` initializer and exist only in memory: no backend, no `localStorage`, no persistence. A reload resets to the seed data.
 
@@ -83,7 +101,7 @@ Transactions are seeded inline in `App`'s `useState` initializer and exist only 
 
 - **`amount` must stay a number.** The starter shipped it as a string in both the seed data and the submit handler, which made `reduce((sum, t) => sum + t.amount, 0)` concatenate instead of add. That is fixed — seed amounts are numeric literals and `TransactionForm` wraps the input with `Number(amount)`, since `<input type="number">` still yields a string. Keep that coercion when touching the form.
 - Amounts are no longer rendered raw. Every figure goes through `formatCurrency` in `src/format.js` (an `Intl.NumberFormat` currency formatter), which is what keeps float noise like `$1234.5600000000001` off the screen. `formatDate` lives there too, and deliberately splits the ISO string instead of using `new Date(iso)` — the latter parses as UTC midnight and renders as the previous day in any negative-offset timezone.
-- Seed row 4 ("Freelance Work", category `salary`) is typed `expense`, so it counts against Expenses. Left as-is — change it only if you mean to.
+- Seed row 4 ("Freelance Work", category `salary`) used to be typed `expense`, which put an $800 `salary` bar inside a chart titled "Spending by category". It is now `income`, which is what it always should have been.
 - Deleting a row goes through `window.confirm`. That blocks Chrome automation, so any browser-driven test must stub it first (`window.confirm = () => true`) rather than let the real dialog open.
 
 ### Styling
@@ -92,7 +110,11 @@ Plain CSS, no framework or CSS modules. `src/index.css` holds the reset **and th
 
 The visual direction is a *ledger instrument*: cool paper (`--paper`), white cards, and income/expense rendered as printed **inks** (`--credit` deep forest, `--debit` deep brick) rather than bright signal green/red. Three typefaces do three jobs — Newsreader for the wordmark and card titles, Instrument Sans for UI, Roboto Mono for every currency figure via the `.figure` class, which also sets `tabular-nums` so columns align. They load from Google Fonts in `index.html`, with fallbacks. Roboto Mono is deliberate: IBM Plex Mono ships a slashed zero that reads as a strikethrough across a trailing `.00` at 14px.
 
-**`--card` must stay `#ffffff`.** The chart's category hues were contrast-validated against a white surface; tinting the card invalidates that check.
+**Dark mode is selected, not flipped.** It is a `prefers-color-scheme` media query that re-points the same tokens — there is no toggle and no persisted preference, so it follows the OS and adds no state. The category hues in it are the palette's own **dark steps**, re-validated against the dark card, not the light hues lightened. `color-scheme` is set on `:root` in both modes so native selects and inputs render to match.
+
+**`--card` is the chart's surface, and its color is what the category hues are validated against** — `#ffffff` in light, `#161b24` in dark. Retinting either one invalidates that check; re-run the validator if you change them.
+
+Amount cells carry a **magnitude rule**: a 3px bar under the figure, scaled to the largest amount currently visible so it rescales with the filters. It sits *under* the number rather than behind it because a wash behind the text is narrower than the text at small values and reads as a stray highlight on half a figure, and it has a `min-width` floor because the ~80:1 range would otherwise round the smallest rows to nothing.
 
 Two CSS traps already hit here, both worth remembering:
 

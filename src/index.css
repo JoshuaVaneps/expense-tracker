@@ -1,9 +1,15 @@
 :root {
-  /* Surfaces — cool paper, white cards. The card stays #ffffff on purpose:
-     the chart's category hues were validated for contrast against white. */
+  color-scheme: light;
+
+  /* Surfaces — cool paper, white cards. The card is the chart's surface, so
+     its color is what the category hues below were contrast-validated against. */
   --paper: #edf0f5;
   --card: #ffffff;
   --rule: #e3e7ef;
+  --track: #dfe4ee;
+  --row-hover: #f7f9fc;
+  --field-border-hover: #cdd4e2;
+  --placeholder: #9aa3b4;
 
   /* Ink */
   --ink: #101a2b;
@@ -13,6 +19,28 @@
   --credit: #0e6b40;
   --debit: #a62f26;
   --accent: #1d3557;
+  --accent-hover: #16293f;
+  --on-accent: #ffffff;
+
+  /* Magnitude rules under the amount cells — a 3px mark needs real saturation
+     to register, unlike the faint wash a full-height fill would want. */
+  --credit-wash: rgba(14, 107, 64, 0.55);
+  --debit-wash: rgba(166, 47, 38, 0.55);
+
+  /* Sparkline */
+  --spark-line: #1d3557;
+  --spark-fill: rgba(29, 53, 87, 0.12);
+
+  /* Category hues, validated against the light card (#ffffff). Order and
+     names match CATEGORIES in constants.js. */
+  --cat-food: #2a78d6;
+  --cat-housing: #eb6834;
+  --cat-utilities: #1baf7a;
+  --cat-transport: #eda100;
+  --cat-entertainment: #e87ba4;
+  --cat-salary: #008300;
+  --cat-other: #4a3aa7;
+  --cat-fallback: #5c6579;
 
   --font-display: "Newsreader", Georgia, "Times New Roman", serif;
   --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -23,6 +51,56 @@
   --radius: 12px;
   --radius-sm: 8px;
 }
+
+/* Dark mode is selected, not flipped: the category hues are the palette's own
+   dark steps, re-validated against the dark card, not the light ones lightened. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --paper: #0d1117;
+    --card: #161b24;
+    --rule: #262d3a;
+    --track: #2b3341;
+    --row-hover: #1c222c;
+    --field-border-hover: #3a4453;
+    --placeholder: #6b7488;
+
+    --ink: #eef1f6;
+    --ink-muted: #98a1b3;
+
+    --credit: #35c07d;
+    --debit: #e8695d;
+    --accent: #2f5f92;
+    --accent-hover: #3a719f;
+    --on-accent: #ffffff;
+
+    --credit-wash: rgba(53, 192, 125, 0.6);
+    --debit-wash: rgba(232, 105, 93, 0.6);
+
+    --spark-line: #6da7ec;
+    --spark-fill: rgba(109, 167, 236, 0.14);
+
+    --cat-food: #3987e5;
+    --cat-housing: #d95926;
+    --cat-utilities: #199e70;
+    --cat-transport: #c98500;
+    --cat-entertainment: #d55181;
+    --cat-salary: #008300;
+    --cat-other: #9085e9;
+    --cat-fallback: #98a1b3;
+  }
+}
+
+/* One rule per category, painting whichever property the element understands:
+   `fill` for the chart's SVG bars, `background-color` for the list's dots. */
+.cat-food { fill: var(--cat-food); background-color: var(--cat-food); }
+.cat-housing { fill: var(--cat-housing); background-color: var(--cat-housing); }
+.cat-utilities { fill: var(--cat-utilities); background-color: var(--cat-utilities); }
+.cat-transport { fill: var(--cat-transport); background-color: var(--cat-transport); }
+.cat-entertainment { fill: var(--cat-entertainment); background-color: var(--cat-entertainment); }
+.cat-salary { fill: var(--cat-salary); background-color: var(--cat-salary); }
+.cat-other { fill: var(--cat-other); background-color: var(--cat-other); }
 
 * {
   margin: 0;

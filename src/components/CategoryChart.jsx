@@ -8,11 +8,13 @@ import {
   LabelList,
   ResponsiveContainer,
 } from 'recharts'
-import { colorForCategory } from '../constants.js'
+import { categoryClass } from '../constants.js'
 import { formatCurrency } from '../format.js'
 
-const AXIS_INK = "#5c6579";
-const CURSOR_FILL = "#f1f3f8";
+// Plain hex fallbacks. These are presentation attributes, which lose to any
+// stylesheet rule, so the themed `.cat-*` classes in index.css always win —
+// these only show for a category with no rule of its own.
+const FALLBACK_FILL = "#5c6579";
 
 function CategoryChart({ transactions }) {
   const totalsByCategory = {};
@@ -26,6 +28,8 @@ function CategoryChart({ transactions }) {
     .map(([category, amount]) => ({ category, amount }))
     .sort((a, b) => b.amount - a.amount);
 
+  const total = data.reduce((sum, d) => sum + d.amount, 0);
+
   return (
     <section className="card chart-card">
       <h2 className="card-title">Spending by category</h2>
@@ -37,31 +41,36 @@ function CategoryChart({ transactions }) {
             <XAxis
               dataKey="category"
               tickLine={false}
-              axisLine={{ stroke: "#e3e7ef" }}
-              tick={{ fill: AXIS_INK, fontSize: 12 }}
+              axisLine={false}
+              tick={{ fontSize: 12 }}
             />
             <YAxis hide />
             <Tooltip
-              cursor={{ fill: CURSOR_FILL }}
-              formatter={(value) => [formatCurrency(value), "Spent"]}
+              cursor={{ className: "chart-cursor" }}
+              // Recharts writes the tooltip's colors as inline styles, which a
+              // stylesheet rule cannot override — but an inline style can hold
+              // a var(), so the token still drives it in both themes.
               contentStyle={{
-                border: "1px solid #e3e7ef",
+                background: "var(--card)",
+                border: "1px solid var(--rule)",
                 borderRadius: 8,
                 fontSize: 13,
-                boxShadow: "0 4px 16px rgba(16, 26, 43, 0.08)",
+                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
               }}
+              labelStyle={{ color: "var(--ink-muted)" }}
+              itemStyle={{ color: "var(--ink)" }}
+              // The share is what rescues the small categories: at an 80:1
+              // range the shortest bars carry no visual signal of their own.
+              formatter={(value) => [
+                `${formatCurrency(value)} · ${Math.round((value / total) * 100)}% of spending`,
+                "Spent",
+              ]}
             />
-            <Bar dataKey="amount" radius={[4, 4, 0, 0]} maxBarSize={48}>
+            <Bar dataKey="amount" fill={FALLBACK_FILL} radius={[4, 4, 0, 0]} maxBarSize={48}>
               {data.map(entry => (
-                <Cell key={entry.category} fill={colorForCategory(entry.category)} />
+                <Cell key={entry.category} className={categoryClass(entry.category)} />
               ))}
-              <LabelList
-                dataKey="amount"
-                position="top"
-                formatter={formatCurrency}
-                fill={AXIS_INK}
-                fontSize={12}
-              />
+              <LabelList dataKey="amount" position="top" formatter={formatCurrency} fontSize={12} />
             </Bar>
           </BarChart>
         </ResponsiveContainer>

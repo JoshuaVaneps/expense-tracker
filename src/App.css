@@ -9,7 +9,8 @@
 .masthead {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 22px;
 }
@@ -19,6 +20,28 @@
   font-size: 26px;
   font-weight: 500;
   letter-spacing: -0.015em;
+}
+
+.masthead-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.masthead-controls select {
+  padding: 6px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.masthead-controls select:hover {
+  border-color: var(--field-border-hover);
 }
 
 .masthead-meta {
@@ -81,13 +104,14 @@
   border: 0;
 }
 
-/* ── Hero: the balance, and what share of income is gone ──── */
+/* ── Hero: the balance, its trend, and what share of income is gone ── */
 
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
   align-items: center;
-  gap: 40px;
+  column-gap: 40px;
+  row-gap: 26px;
   background: var(--card);
   border: 1px solid var(--rule);
   border-radius: var(--radius);
@@ -121,7 +145,7 @@
 
 .meter-track {
   height: 10px;
-  background: #dfe4ee;
+  background: var(--track);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -159,6 +183,39 @@
   margin-top: 5px;
 }
 
+.hero-trend {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--rule);
+  padding-top: 20px;
+}
+
+.spark {
+  display: block;
+  width: 100%;
+  height: 56px;
+}
+
+.spark-area {
+  fill: var(--spark-fill);
+}
+
+.spark-line {
+  fill: none;
+  stroke: var(--spark-line);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.spark-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
 /* ── Workspace: chart beside the entry form ───────────────── */
 
 .workspace {
@@ -168,13 +225,20 @@
   margin: 20px 0;
 }
 
-.chart-card .recharts-text {
+/* Recharts paints via SVG, so its text takes `fill`, not `color`. */
+.chart-card .recharts-cartesian-axis-tick text {
+  fill: var(--ink-muted);
   font-family: var(--font-sans);
 }
 
 .chart-card .recharts-label-list text {
+  fill: var(--ink-muted);
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+.chart-cursor {
+  fill: var(--row-hover);
 }
 
 /* ── Entry form ───────────────────────────────────────────── */
@@ -214,11 +278,11 @@
 
 .field input:hover,
 .field select:hover {
-  border-color: #cdd4e2;
+  border-color: var(--field-border-hover);
 }
 
 .field input::placeholder {
-  color: #9aa3b4;
+  color: var(--placeholder);
 }
 
 .field-pair {
@@ -231,7 +295,7 @@
   margin-top: 4px;
   padding: 11px 16px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: none;
   border-radius: var(--radius-sm);
   font-family: inherit;
@@ -242,7 +306,7 @@
 }
 
 .btn-primary:hover {
-  background: #16293f;
+  background: var(--accent-hover);
 }
 
 /* ── Ledger table ─────────────────────────────────────────── */
@@ -278,7 +342,7 @@
 }
 
 .filters select:hover {
-  border-color: #cdd4e2;
+  border-color: var(--field-border-hover);
 }
 
 .table-scroll {
@@ -313,7 +377,7 @@
 }
 
 .ledger tbody tr:hover {
-  background: #f7f9fc;
+  background: var(--row-hover);
 }
 
 .ledger tbody tr:last-child td {
@@ -340,13 +404,46 @@
 }
 
 /* Scoped to .ledger th/td so these beat the `.ledger th` alignment above —
-   a bare `.col-amount` loses that specificity fight and the header drifts
-   left of its column. */
-.ledger th.col-amount,
-.ledger td.col-amount {
+   a bare class loses that specificity fight and the header drifts left of
+   its column. */
+.ledger th.col-money,
+.ledger td.col-money {
   text-align: right;
-  font-weight: 500;
   white-space: nowrap;
+  min-width: 130px;
+}
+
+.ledger td.col-money {
+  position: relative;
+}
+
+/* A rule under the figure, scaled to the row's share of the largest visible
+   amount, so the column can be scanned for big items without reading it.
+   Under rather than behind: a wash behind the text is narrower than the text
+   itself at small values, which reads as a stray highlight on half a number. */
+.magnitude {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  height: 3px;
+  /* The amounts span an ~80:1 range, so the smallest rows would otherwise
+     round to a sub-pixel sliver and read as nothing at all. */
+  min-width: 6px;
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.magnitude-credit {
+  background: var(--credit-wash);
+}
+
+.magnitude-debit {
+  background: var(--debit-wash);
+}
+
+.money-value {
+  position: relative;
+  font-weight: 500;
 }
 
 .col-action {
@@ -397,7 +494,7 @@
 
   .hero {
     grid-template-columns: minmax(0, 1fr);
-    gap: 28px;
+    row-gap: 28px;
     padding: 28px 24px;
   }
 
@@ -420,5 +517,10 @@
 
   .hero-totals {
     gap: 28px;
+  }
+
+  .ledger th.col-money,
+  .ledger td.col-money {
+    min-width: 110px;
   }
 }

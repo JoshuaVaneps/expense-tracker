@@ -1,4 +1,18 @@
-import { formatCurrency } from '../format.js'
+import { formatCurrency, formatDate } from '../format.js'
+
+const SPARK_W = 100;
+const SPARK_H = 28;
+
+// Running balance in date order — the shape of how the current figure was reached.
+function balanceSeries(transactions) {
+  const chronological = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+
+  let running = 0;
+  return chronological.map(t => {
+    running += t.type === "income" ? t.amount : -t.amount;
+    return { date: t.date, balance: running };
+  });
+}
 
 function Summary({ transactions }) {
   const totalIncome = transactions
@@ -28,6 +42,31 @@ function Summary({ transactions }) {
     meterNote = totalExpenses > totalIncome
       ? `Spending is ${percent}% of income`
       : `${percent}% of income spent`;
+  }
+
+  const series = balanceSeries(transactions);
+  const hasTrend = series.length >= 2;
+
+  let linePath = "";
+  let areaPath = "";
+  if (hasTrend) {
+    const values = series.map(p => p.balance);
+    // Scaled to the data's own range, not anchored to zero. Anchoring to zero
+    // is more honest about absolute size but flattens the curve to a
+    // featureless line whenever the balance is large relative to its swings —
+    // and the shape is the only thing a sparkline this size can convey.
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const span = max - min || 1;
+
+    const points = series.map((p, i) => {
+      const x = (i / (series.length - 1)) * SPARK_W;
+      const y = SPARK_H - ((p.balance - min) / span) * SPARK_H;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    });
+
+    linePath = `M${points.join(" L")}`;
+    areaPath = `${linePath} L${SPARK_W},${SPARK_H} L0,${SPARK_H} Z`;
   }
 
   return (
@@ -64,6 +103,28 @@ function Summary({ transactions }) {
           </div>
         </dl>
       </div>
+
+      {hasTrend && (
+        <div className="hero-trend">
+          <svg
+            className="spark"
+            viewBox={`0 0 ${SPARK_W} ${SPARK_H}`}
+            preserveAspectRatio="none"
+            role="img"
+            aria-label={`Running balance across ${series.length} entries, ending at ${formatCurrency(balance)}`}
+          >
+            <path className="spark-area" d={areaPath} />
+            {/* non-scaling-stroke keeps the line an even weight despite the
+                squashed preserveAspectRatio */}
+            <path className="spark-line" d={linePath} vectorEffect="non-scaling-stroke" />
+          </svg>
+
+          <div className="spark-scale">
+            <span>{formatDate(series[0].date)}</span>
+            <span>{formatDate(series[series.length - 1].date)}</span>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
